@@ -1,6 +1,6 @@
 # MiniMax-H3-Image Bench
 
-A gallery of 300 graded text-to-image prompts rendered with MiniMax-H3-Image at ~16 MP on a single RTX 5080 (16 GB), stock ComfyUI workflow.
+A gallery of 600 graded text-to-image prompts in two rounds (300 reused from a MOSS-Image benchmark, 300 written for this model) rendered with MiniMax-H3-Image at ~16 MP on a single RTX 5080 (16 GB), stock ComfyUI workflow.
 
 Live page: https://jo-nike.github.io/h3-image-bench/
 
