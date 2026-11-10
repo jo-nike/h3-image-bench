@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MiniMax-H3-Image Bench</title>
+<meta name="description" content="300 graded prompts rendered at 16 MP with MiniMax-H3-Image on an RTX 5080.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* A darkroom proof sheet: sticky control strip, justified rows of frames, a viewer that pairs the print with its grading sheet. */
+:root {
+  color-scheme: light;
+  --paper: #eceef0; --sheet: #f8f9fa; --ink: #16191d; --ink-2: #4a5059; --rule: #cfd4da; --accent: #0f6f8a;
+  --pass: #2f7d4f; --partial: #a86a00; --fail: #b3261e;
+  --s5: #2f7d4f; --s4: #3f7f8f; --s3: #a86a00; --s2: #c4561b; --s1: #b3261e;
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #111316; --sheet: #1a1d21; --ink: #e8eaed; --ink-2: #a3a9b2; --rule: #2e333a; --accent: #4fc3e0;
+  --pass: #5fbf85; --partial: #e0a23a; --fail: #f07068;
+  --s5: #5fbf85; --s4: #6cb3c4; --s3: #e0a23a; --s2: #ef8a4f; --s1: #f07068; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #111316; --sheet: #1a1d21; --ink: #e8eaed; --ink-2: #a3a9b2; --rule: #2e333a; --accent: #4fc3e0;
+  --pass: #5fbf85; --partial: #e0a23a; --fail: #f07068;
+  --s5: #5fbf85; --s4: #6cb3c4; --s3: #e0a23a; --s2: #ef8a4f; --s1: #f07068; color-scheme: dark }
+
+* { box-sizing: border-box; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 14px var(--display); }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+a { color: var(--accent); }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1600px; margin: 0 auto; }
+
+header.top { padding-block: 28px 16px; display: grid; gap: 10px; }
+h1 { font: 800 clamp(28px, 4vw, 44px)/1 var(--display); letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+h1 span { color: var(--accent); }
+.lede { font: 400 15px/1.55 var(--body); color: var(--ink-2); max-width: 78ch; margin: 0; }
+.settings { font: 400 12.5px/1.6 var(--mono); color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.settings b { color: var(--ink); font-weight: 600; }
+.progress { display: flex; align-items: center; gap: 12px; font: 600 13px var(--mono); color: var(--ink-2); flex-wrap: wrap; }
+.bar { flex: 1 1 200px; max-width: 360px; height: 6px; background: var(--rule); border-radius: 3px; overflow: hidden; display: flex; }
+.bar i { display: block; height: 100%; }
+.bar .done { background: var(--ink-2); } .bar .rev { background: var(--accent); }
+
+.controls { position: sticky; top: 0; z-index: 5; background: var(--paper); border-bottom: 1px solid var(--rule); padding-block: 10px; padding-top: max(10px, env(safe-area-inset-top, 0px)); }
+.tabs, .filters { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar, .filters::-webkit-scrollbar { display: none; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.tab { flex: none; border: 1px solid var(--rule); background: var(--sheet); border-radius: 999px; padding: 6px 12px; font: 600 13px var(--display); display: flex; gap: 8px; align-items: baseline; }
+.tab small { font: 400 11.5px var(--mono); color: var(--ink-2); }
+.tab[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.tab[aria-pressed="true"] small { color: var(--paper); opacity: .75; }
+.chip { flex: none; border: 1px solid var(--rule); background: transparent; border-radius: 6px; padding: 4px 9px; font: 600 12px var(--mono); color: var(--ink-2); }
+.chip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.filters .lbl { flex: none; font: 600 11px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); align-self: center; margin-right: 2px; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+details.setup { margin-block: 4px 0; }
+details.setup .md li { overflow-wrap: anywhere; }
+details.summary { margin-block: 14px 4px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; }
+details.summary > summary { cursor: pointer; padding: 10px 14px; font: 700 14px var(--display); list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+details.summary > summary::after { content: "Show"; font: 400 12px var(--mono); color: var(--ink-2); }
+details.summary[open] > summary::after { content: "Hide"; }
+.md { padding: 0 18px 14px; font: 400 15px/1.55 var(--body); max-width: 78ch; }
+.md h3 { font: 700 15px var(--display); margin: 16px 0 6px; }
+.md ul, .md ol { padding-left: 20px; margin: 4px 0; display: grid; gap: 3px; }
+.md p { margin: 6px 0; }
+.md code { font: 13px var(--mono); }
+
+.grid { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 14px 48px; }
+.grid::after { content: ""; flex-grow: 999; }
+.frame { position: relative; border: 0; padding: 0; background: var(--sheet); border-radius: 4px; overflow: hidden; display: block; max-width: 100%; }
+.frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.frame .pending { position: absolute; inset: 0; display: grid; place-items: center; font: 600 12px var(--mono); color: var(--ink-2); border: 1px dashed var(--rule); border-radius: 4px; }
+.frame .tag { position: absolute; left: 6px; bottom: 6px; display: flex; gap: 4px; align-items: center; }
+.frame .tag span { font: 600 11px var(--mono); padding: 2px 6px; border-radius: 4px; background: rgba(10,12,14,.72); color: #f4f5f6; }
+.frame .tag .sc { color: #10130f; }
+.sc[data-s="5"] { background: var(--s5) !important; } .sc[data-s="4"] { background: var(--s4) !important; }
+.sc[data-s="3"] { background: var(--s3) !important; } .sc[data-s="2"] { background: var(--s2) !important; }
+.sc[data-s="1"] { background: var(--s1) !important; }
+.frame .star { position: absolute; right: 6px; top: 6px; font: 700 12px var(--display); background: var(--accent); color: #06232b; border-radius: 4px; padding: 2px 6px; }
+.empty { padding: 40px 0; font: 400 15px var(--body); color: var(--ink-2); }
+
+dialog { border: 0; padding: 0; width: 100vw; max-width: 100vw; height: 100%; max-height: 100%; background: var(--paper); color: var(--ink); }
+dialog::backdrop { background: rgba(0,0,0,.6); }
+.viewer { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 440px);
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+.stage { position: relative; min-height: 0; background: var(--sheet); overflow: hidden; }
+.stage .scroller { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; }
+.stage img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
+.stage.zoomed .scroller { display: block; overflow: auto; }
+.stage.zoomed img { max-width: none; max-height: none; cursor: zoom-out; }
+.stage .loading { position: absolute; left: 12px; top: 12px; font: 600 12px var(--mono); color: var(--ink-2); background: var(--paper); padding: 3px 8px; border-radius: 4px; }
+.stage .hint { position: absolute; right: 12px; bottom: 12px; font: 600 11.5px var(--mono); color: #f4f5f6; background: rgba(10,12,14,.6); padding: 3px 8px; border-radius: 4px; pointer-events: none; }
+.nav { position: absolute; top: 50%; transform: translateY(-50%); border: 0; background: rgba(10,12,14,.55); color: #fff; width: 40px; height: 56px; border-radius: 6px; font: 700 20px var(--display); z-index: 2; }
+.nav:disabled { opacity: .3; cursor: default; }
+.nav.prev { left: 10px; } .nav.next { right: 10px; }
+.side { overflow-y: auto; padding: 18px 20px 28px; display: grid; gap: 16px; align-content: start; border-left: 1px solid var(--rule); min-width: 0; }
+.side .head { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.side h2 { margin: 0; font: 800 22px/1.1 var(--display); }
+.side h2 small { display: block; font: 400 13px var(--body); color: var(--ink-2); margin-top: 4px; }
+.close { border: 1px solid var(--rule); background: var(--sheet); border-radius: 6px; padding: 6px 10px; font: 600 13px var(--display); flex: none; }
+.meta { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font: 400 12.5px var(--mono); color: var(--ink-2); }
+.meta b { color: var(--ink); font-weight: 600; }
+.dl { display: flex; gap: 8px; flex-wrap: wrap; }
+.dl a { font: 600 12.5px var(--mono); text-decoration: none; border: 1px solid var(--rule); background: var(--sheet); border-radius: 6px; padding: 5px 10px; color: var(--ink); }
+.dl a:hover { border-color: var(--accent); color: var(--accent); }
+.bigscore { display: inline-flex; align-items: baseline; gap: 6px; font: 800 28px var(--display); }
+.bigscore .sc { color: #10130f; padding: 2px 10px; border-radius: 6px; }
+.bigscore small { font: 400 13px var(--mono); color: var(--ink-2); }
+h3.lbl { margin: 0 0 6px; font: 600 11px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+ul.checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+ul.checks li { display: grid; grid-template-columns: 62px 1fr; gap: 8px; font: 400 14px/1.4 var(--body); }
+ul.checks li em { display: block; font-style: normal; color: var(--ink-2); font-size: 13px; }
+.res { font: 600 11px var(--mono); text-transform: uppercase; padding: 2px 0; text-align: center; border-radius: 4px; height: fit-content; border: 1px solid currentColor; }
+.res.pass { color: var(--pass); } .res.partial { color: var(--partial); } .res.fail { color: var(--fail); } .res.none { color: var(--ink-2); }
+.notes { font: 400 14px/1.5 var(--body); display: grid; gap: 6px; }
+.notes p { margin: 0; }
+.notes b { font-family: var(--display); font-size: 12.5px; }
+.prompt { font: 400 14.5px/1.6 var(--body); white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.aside-note { font: 400 13px/1.5 var(--body); color: var(--ink-2); margin: 8px 0 0; }
+pre.layout { font: 400 12px/1.5 var(--mono); background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 10px; overflow-x: auto; margin: 8px 0 0; }
+footer { padding-block: 0 40px; font: 400 13px/1.6 var(--body); color: var(--ink-2); }
+
+@media (max-width: 860px) {
+  .viewer { grid-template-columns: 1fr; grid-template-rows: minmax(40vh, 55vh) auto; overflow-y: auto; }
+  .side { border-left: 0; border-top: 1px solid var(--rule); overflow: visible; }
+}
+@media (prefers-reduced-motion: no-preference) { .frame img { transition: opacity .2s; } .frame:hover img { opacity: .88; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>MiniMax-H3-Image <span>Bench</span></h1>
+    <p class="lede">300 prompts across people, groups, sci-fi, art styles, text and design, and lighting, each with a checklist graded pass, partial or fail, rendered at the model's native ~16 MP. Click any image for its grading sheet; click the print to view it at 100%.</p>
+    <div class="settings">
+      <span><b>minimax_h3_image_pruned_int8_convrot</b></span><span>Qwen3-VL-32B NVFP4 encoder</span><span>6 steps · euler / simple</span>
+      <span>cfg 1, no negative</span><span>~16 MP</span><span>RTX 5080 16 GB</span><span>ComfyUI v0.45.0</span><span>2026-11-10</span>
+    </div>
+    <div class="progress" id="progress"></div>
+    <details class="summary setup">
+      <summary>How this was made</summary>
+      <div class="md">
+        <h3>Hardware</h3>
+        <ul>
+          <li>One NVIDIA RTX 5080 (16 GB VRAM) in a home workstation with 192 GB of system RAM, running ComfyUI v0.45.0 as a service. ComfyUI was the only process on the GPU when checked during the run.</li>
+          <li>The int8 DiT is about 21 GB and the text encoder about 15 GB, so neither fits in VRAM. ComfyUI's dynamic VRAM loading streams weights from system RAM, and the text encoder is evicted before sampling. No out-of-memory errors at 16 MP.</li>
+        </ul>
+        <h3>Workflow</h3>
+        <ul>
+          <li>The stock ComfyUI text-to-image template for MiniMax-H3-Image (<code>image_minimax_h3_image_t2i</code>), native nodes only, no custom nodes: <code>UNETLoader</code> → <code>MiniMaxH3ImageConditioning</code> (which also makes the empty latent) → <code>KSampler</code> → <code>VAEDecode</code>. The negative is a <code>ConditioningZeroOut</code> of the positive.</li>
+          <li>Sampler fixed by the model's distillation: 6 steps, cfg 1, euler / simple, denoise 1. No negative prompt. Batch 1.</li>
+          <li>The template's optional prompt enhancer (Qwen3.5-9B rewriting the prompt first) was <b>off</b>: every image saw the prompt exactly as written.</li>
+          <li>Seeds are fixed per prompt (CRC32 of its id) and match the earlier MOSS-Image run.</li>
+        </ul>
+        <h3>Model files</h3>
+        <ul>
+          <li>Diffusion model: <code>minimax_h3_image_pruned_int8_convrot</code> (21 GB, int8), the build the template uses.</li>
+          <li>Text encoder: <code>qwen3vl_32b_minimax_h3_nvfp4_awq</code> (Qwen3-VL-32B, NVFP4, 15.7 GB), loaded with <code>CLIPLoader</code> type <code>minimax</code>. <b>This differs from the stock template</b>, which names the int8 build of the same encoder (<code>qwen3vl_32b_minimax_h3_int8_convrot</code>, 27 GB). The NVFP4 build was already on the machine for MiniMax-H3 video. The two were not A/B tested.</li>
+          <li>VAE: <code>minimax_h3_image_vae_fp16</code>.</li>
+          <li>All from <a href="https://huggingface.co/Comfy-Org/MiniMax-H3-Image">Comfy-Org/MiniMax-H3-Image</a> and <a href="https://huggingface.co/Comfy-Org/MiniMax-H3">Comfy-Org/MiniMax-H3</a>.</li>
+        </ul>
+        <h3>Resolution</h3>
+        <ul>
+          <li>About 16 MP per image, the size the model card recommends (working range 4 to 20 MP): 4096×4096 for 1:1, 4736×3552 for 4:3, 5024×3360 for 3:2, 5472×3072 for 16:9, 6272×2688 for 21:9, 4576×3648 for 5:4, and the portrait equivalents. Every edge is a multiple of 32.</li>
+          <li>The viewer loads a WebP at full resolution (quality 90). The lossless PNG straight out of ComfyUI is linked on each image.</li>
+        </ul>
+        <h3>Prompts</h3>
+        <ul>
+          <li>300 prompts in six sets of 50, each with a checklist of 4 to 8 visible requirements (1,876 checks in all). They were written for an earlier benchmark of MOSS-Image and reused unchanged here.</li>
+          <li>282 are prose captions, close to the style MiniMax recommends. 10 are anime tag lists (set D), sent as-is.</li>
+          <li>8 design prompts in set E were written with a bounding-box layout for MOSS-Image. This model has no layout input, so it received only the caption, which still states every string and its position.</li>
+        </ul>
+        <h3>Grading</h3>
+        <ul>
+          <li>Each image was graded by a Claude reviewer, check by check: pass, partial or fail, with a note on what is actually visible. Then a 1 to 5 score against the whole prompt (5: everything met, no visible defects; 4: minor misses, still usable; 3: one key requirement missed; 2: several missed; 1: off-brief). Plus anatomy defects, a transcription of any requested text, and a standout flag for roughly the best 15% of each set.</li>
+          <li>Reviewers looked at a 1280 px copy, and cropped the full-resolution file for small text, finger counts and counting.</li>
+          <li>Each set's findings (failure modes, what correlated with success, prompting advice) are in the panel that opens when you pick a category.</li>
+        </ul>
+        <h3>Timing</h3>
+        <ul id="timing"><li>Measured execution time per image is shown in each image's details.</li></ul>
+      </div>
+    </details>
+  </header>
+</div>
+<div class="controls"><div class="wrap" style="display:grid;gap:8px">
+  <div class="tabs" id="tabs" role="group" aria-label="Category"></div>
+  <div class="filters" id="filters" role="group" aria-label="Filter"></div>
+</div></div>
+<main class="wrap">
+  <details class="summary" id="summary" hidden><summary id="summaryTitle">Reviewer findings</summary><div class="md" id="summaryBody"></div></details>
+  <div class="grid" id="grid"></div>
+</main>
+<footer class="wrap" id="footer"></footer>
+
+<dialog id="dlg" aria-label="Image detail">
+  <div class="viewer">
+    <div class="stage" id="stage">
+      <div class="scroller" id="scroller"><img id="dImg" alt=""></div>
+      <span class="loading" id="loading" hidden>loading full resolution…</span>
+      <span class="hint" id="hint">click to zoom 100%</span>
+      <button class="nav prev" id="prev" aria-label="Previous image">‹</button>
+      <button class="nav next" id="next" aria-label="Next image">›</button>
+    </div>
+    <aside class="side" id="side"></aside>
+  </div>
+</dialog>
+
+<script>
+const CATS = { A: "People", B: "Groups", C: "Sci-fi & fantasy", D: "Styles", E: "Text & design", F: "Lighting & photo" };
+const state = { cat: "all", score: null, standout: false, items: [], summaries: {}, release: "" };
+try { const c = localStorage.getItem("h3-cat"); if (c) state.cat = c; } catch (e) {}
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const mb = (b) => (b / 1e6).toFixed(1) + " MB";
+
+function mean(xs) { return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null; }
+function statsOf(items) {
+  const rev = items.filter((i) => i.review);
+  const checks = rev.flatMap((i) => i.review.checks || []);
+  return { n: items.length, imgs: items.filter((i) => i.img).length, rev: rev.length,
+    mean: mean(rev.map((i) => i.review.score)),
+    pass: checks.length ? checks.filter((c) => c.result === "pass").length / checks.length : null };
+}
+
+function md(src) {
+  const lines = src.split("\n"); let html = "", list = null;
+  const inline = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`(.+?)`/g, "<code>$1</code>");
+  const close = () => { if (list) { html += `</${list}>`; list = null; } };
+  for (const raw of lines) {
+    const l = raw.trimEnd(); let m;
+    if (!l.trim()) { close(); continue; }
+    if ((m = l.match(/^#{1,3}\s+(.*)/))) { close(); html += `<h3>${inline(m[1])}</h3>`; continue; }
+    if ((m = l.match(/^\s*[-*]\s+(.*)/))) { if (list !== "ul") { close(); html += "<ul>"; list = "ul"; } html += `<li>${inline(m[1])}</li>`; continue; }
+    if ((m = l.match(/^\s*\d+\.\s+(.*)/))) { if (list !== "ol") { close(); html += "<ol>"; list = "ol"; } html += `<li>${inline(m[1])}</li>`; continue; }
+    close(); html += `<p>${inline(l)}</p>`;
+  }
+  close(); return html;
+}
+
+function visible() {
+  return state.items.filter((i) => (state.cat === "all" || i.cat === state.cat)
+    && (state.score == null || (i.review && i.review.score === state.score))
+    && (!state.standout || (i.review && i.review.standout)));
+}
+
+function renderTop() {
+  const s = statsOf(state.items);
+  $("progress").innerHTML = `<span>${s.imgs} of ${s.n} rendered · ${s.rev} graded</span>
+    <span class="bar" aria-hidden="true"><i class="rev" style="width:${s.rev / s.n * 100}%"></i><i class="done" style="width:${(s.imgs - s.rev) / s.n * 100}%"></i></span>
+    ${s.mean != null ? `<span>mean score ${s.mean.toFixed(2)} · checks passed ${(s.pass * 100).toFixed(0)}%</span>` : ""}`;
+  const tabs = [["all", "All", state.items]].concat(Object.entries(CATS).map(([k, v]) => [k, v, state.items.filter((i) => i.cat === k)]));
+  $("tabs").innerHTML = tabs.map(([k, label, its]) => {
+    const st = statsOf(its);
+    const sub = st.mean != null ? `${st.mean.toFixed(2)} · ${st.imgs}/${st.n}` : `${st.imgs}/${st.n}`;
+    return `<button class="tab" aria-pressed="${state.cat === k}" data-cat="${k}">${label}<small>${sub}</small></button>`;
+  }).join("");
+  const scoreChips = [5, 4, 3, 2, 1].map((n) => `<button class="chip" data-score="${n}" aria-pressed="${state.score === n}">${n}</button>`).join("");
+  $("filters").innerHTML = `<span class="lbl">Score</span>${scoreChips}<button class="chip" data-standout aria-pressed="${state.standout}">★ standouts</button>`;
+}
+
+function renderSummary() {
+  const s = state.summaries[state.cat];
+  $("summary").hidden = !s;
+  if (s) { $("summaryTitle").textContent = state.cat === "all" ? "Overall findings" : `${CATS[state.cat]}: reviewer findings`; $("summaryBody").innerHTML = md(s); }
+}
+
+function renderGrid() {
+  const its = visible();
+  if (!its.length) { $("grid").innerHTML = `<p class="empty">Nothing matches these filters.</p>`; return; }
+  $("grid").innerHTML = its.map((i) => {
+    const ar = i.w && i.h ? i.w / i.h : 1;
+    const r = i.review;
+    const tag = `<span class="tag"><span>${i.id}</span>${r ? `<span class="sc" data-s="${r.score}">${r.score}</span>` : ""}</span>`;
+    const inner = i.thumb ? `<img src="${i.thumb}" alt="${esc(i.sub)}" loading="lazy" decoding="async">` : `<span class="pending">${i.error ? "failed" : "not rendered"}</span>`;
+    return `<button class="frame" data-id="${i.id}" style="flex:${ar * 220} 1 ${ar * 220}px;aspect-ratio:${ar}" ${i.img ? "" : "disabled"} aria-label="${esc(i.id + " " + i.sub)}">${inner}${tag}${r && r.standout ? '<span class="star">★</span>' : ""}</button>`;
+  }).join("");
+}
+
+function render() { renderTop(); renderSummary(); renderGrid(); }
+
+let cur = null;
+function setZoom(on) { $("stage").classList.toggle("zoomed", on); $("hint").textContent = on ? "click to fit" : "click to zoom 100%"; }
+function openItem(id) {
+  const its = visible().filter((i) => i.img);
+  const idx = its.findIndex((i) => i.id === id);
+  if (idx < 0) return;
+  cur = { its, idx };
+  showCur();
+  if (!$("dlg").open) $("dlg").showModal();
+}
+function showCur() {
+  const i = cur.its[cur.idx], r = i.review, img = $("dImg");
+  setZoom(false);
+  img.src = i.thumb; img.alt = i.sub;
+  $("loading").hidden = false;
+  const full = new Image();
+  full.onload = () => { if (cur && cur.its[cur.idx] === i) { img.src = i.img; $("loading").hidden = true; } };
+  full.src = i.img;
+  try { history.replaceState(null, "", "#" + i.id); } catch (e) {}
+  const checks = (r ? r.checks : i.checks.map((c) => ({ check: c, result: "none" }))).map((c) =>
+    `<li><span class="res ${c.result}">${c.result === "none" ? "—" : c.result}</span><span>${esc(c.check)}${c.note ? `<em>${esc(c.note)}</em>` : ""}</span></li>`).join("");
+  const notes = r ? [
+    r.anatomy_issues && r.anatomy_issues.length ? `<p><b>Anatomy</b> ${esc(r.anatomy_issues.join("; "))}</p>` : "",
+    r.dropped && r.dropped.length ? `<p><b>Dropped</b> ${esc(r.dropped.join("; "))}</p>` : "",
+    r.text_rendered ? `<p><b>Text rendered</b> ${esc(r.text_rendered)}</p>` : "",
+    r.quality_notes ? `<p><b>Quality</b> ${esc(r.quality_notes)}</p>` : "",
+  ].join("") : `<p>Not graded.</p>`;
+  const png = i.png || null;
+  $("side").innerHTML = `
+    <div class="head"><h2>${i.id}<small>${esc(CATS[i.cat])} · ${esc(i.sub)}</small></h2><button class="close" id="close">Close</button></div>
+    ${r ? `<div class="bigscore"><span class="sc" data-s="${r.score}">${r.score}</span><small>/ 5${r.standout ? " · ★ standout" : ""}</small></div>` : ""}
+    <div class="meta"><span>size</span><b>${i.w}×${i.h} (${i.aspect}, ${(i.w * i.h / 1e6).toFixed(1)} MP)</b><span>format</span><b>${esc(i.format)}</b><span>seed</span><b>${i.seed}</b><span>render</span><b>${i.secs} s</b><span>words</span><b>${i.prompt.split(/\s+/).length}</b></div>
+    <div class="dl"><a href="${i.img}" target="_blank" rel="noopener">Full-res WebP · ${mb(i.img_bytes)}</a>${png ? `<a href="${png}">Original PNG · ${mb(i.png_bytes)}</a>` : ""}</div>
+    <section><h3 class="lbl">Checks</h3><ul class="checks">${checks}</ul></section>
+    <section><h3 class="lbl">Reviewer notes</h3><div class="notes">${notes}</div></section>
+    <section><h3 class="lbl">Prompt</h3><p class="prompt">${esc(i.prompt)}</p>${i.layout ? `<p class="aside-note">This prompt was written with a bounding-box layout for a model that supports one. MiniMax-H3-Image has no layout input, so it received the caption above only.</p><pre class="layout">${esc(JSON.stringify(i.layout, null, 1))}</pre>` : ""}</section>`;
+  $("close").onclick = () => $("dlg").close();
+  $("prev").disabled = cur.idx === 0; $("next").disabled = cur.idx === cur.its.length - 1;
+}
+function step(d) { if (!cur) return; const n = cur.idx + d; if (n < 0 || n >= cur.its.length) return; cur.idx = n; showCur(); $("side").scrollTop = 0; }
+
+$("dImg").addEventListener("click", (e) => {
+  const st = $("stage"), sc = $("scroller"), img = $("dImg");
+  if (st.classList.contains("zoomed")) { setZoom(false); return; }
+  const r = img.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+  setZoom(true);
+  sc.scrollLeft = fx * img.naturalWidth - sc.clientWidth / 2;
+  sc.scrollTop = fy * img.naturalHeight - sc.clientHeight / 2;
+});
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-cat],[data-score],[data-standout],.frame");
+  if (!t) return;
+  if (t.dataset.cat) { state.cat = t.dataset.cat; try { localStorage.setItem("h3-cat", state.cat); } catch (err) {} render(); }
+  else if (t.dataset.score) { const n = +t.dataset.score; state.score = state.score === n ? null : n; render(); }
+  else if (t.hasAttribute("data-standout")) { state.standout = !state.standout; render(); }
+  else if (t.classList.contains("frame")) openItem(t.dataset.id);
+});
+$("prev").onclick = () => step(-1); $("next").onclick = () => step(1);
+$("dlg").addEventListener("close", () => { cur = null; try { history.replaceState(null, "", location.pathname); } catch (e) {} });
+document.addEventListener("keydown", (e) => { if (!$("dlg").open) return; if (e.key === "ArrowLeft") step(-1); if (e.key === "ArrowRight") step(1); });
+let tx = null;
+$("scroller").addEventListener("touchstart", (e) => { tx = $("stage").classList.contains("zoomed") ? null : e.touches[0].clientX; }, { passive: true });
+$("scroller").addEventListener("touchend", (e) => { if (tx == null) return; const dx = e.changedTouches[0].clientX - tx; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); tx = null; });
+
+fetch("data.json").then((r) => r.json()).then((d) => {
+  state.items = d.items; state.summaries = d.summaries || {}; state.release = d.release || "";
+  if (d.footer) $("footer").innerHTML = md(d.footer);
+  const secs = d.items.map((i) => i.secs).filter(Boolean).sort((a, b) => a - b);
+  if (secs.length) $("timing").innerHTML = `<li>Median <b>${secs[secs.length >> 1].toFixed(1)} s</b> per 16 MP image (range ${secs[0].toFixed(1)} to ${secs[secs.length - 1].toFixed(1)} s, n=${secs.length}), measured as ComfyUI execution time with the models already loaded. The first image after a cold start took about 75 s, mostly reading the model files from disk.</li>`;
+  if (state.cat !== "all" && !CATS[state.cat]) state.cat = "all";
+  render();
+  const h = location.hash.slice(1);
+  if (h) { const it = state.items.find((i) => i.id === h); if (it) { state.cat = "all"; render(); openItem(h); } }
+}).catch(() => { $("grid").innerHTML = `<p class="empty">The image list failed to load. Reload the page to try again.</p>`; });
+</script>
+</body>
+</html>
