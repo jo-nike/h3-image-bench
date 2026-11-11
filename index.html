@@ -48,8 +48,12 @@ h1 span { color: var(--accent); }
 .bar .done { background: var(--ink-2); } .bar .rev { background: var(--accent); }
 
 .controls { position: sticky; top: 0; z-index: 5; background: var(--paper); border-bottom: 1px solid var(--rule); padding-block: 10px; padding-top: max(10px, env(safe-area-inset-top, 0px)); }
-.tabs, .filters { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
-.tabs::-webkit-scrollbar, .filters::-webkit-scrollbar { display: none; }
+.filters, .tabrow { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.filters::-webkit-scrollbar, .tabrow::-webkit-scrollbar { display: none; }
+.tabs { display: grid; gap: 6px; }
+.tabrow { align-items: center; }
+.tabrow .lbl { flex: none; font: 600 11px var(--mono); color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; min-width: 62px; }
+@media (min-width: 700px) { .tabrow { flex-wrap: wrap; overflow-x: visible; } }
 button { font: inherit; color: inherit; cursor: pointer; }
 .tab { flex: none; border: 1px solid var(--rule); background: var(--sheet); border-radius: 999px; padding: 6px 12px; font: 600 13px var(--display); display: flex; gap: 8px; align-items: baseline; }
 .tab small { font: 400 11.5px var(--mono); color: var(--ink-2); }
@@ -94,7 +98,8 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .stage .scroller { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; }
 .stage img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
 .stage.zoomed .scroller { display: block; overflow: auto; }
-.stage.zoomed img { max-width: none; max-height: none; cursor: zoom-out; }
+.stage.zoomed img { max-width: none; max-height: none; cursor: grab; user-select: none; -webkit-user-drag: none; }
+.stage.zoomed.dragging img { cursor: grabbing; }
 .stage .loading { position: absolute; left: 12px; top: 12px; font: 600 12px var(--mono); color: var(--ink-2); background: var(--paper); padding: 3px 8px; border-radius: 4px; }
 .stage .hint { position: absolute; right: 12px; bottom: 12px; font: 600 11.5px var(--mono); color: #f4f5f6; background: rgba(10,12,14,.6); padding: 3px 8px; border-radius: 4px; pointer-events: none; }
 .nav { position: absolute; top: 50%; transform: translateY(-50%); border: 0; background: rgba(10,12,14,.55); color: #fff; width: 40px; height: 56px; border-radius: 6px; font: 700 20px var(--display); z-index: 2; }
@@ -257,12 +262,14 @@ function renderTop() {
   $("progress").innerHTML = `<span>${s.imgs} of ${s.n} rendered · ${s.rev} graded</span>
     <span class="bar" aria-hidden="true"><i class="rev" style="width:${s.rev / s.n * 100}%"></i><i class="done" style="width:${(s.imgs - s.rev) / s.n * 100}%"></i></span>
     ${s.mean != null ? `<span>mean score ${s.mean.toFixed(2)} · checks passed ${(s.pass * 100).toFixed(0)}%</span>` : ""}`;
-  const tabs = [["all", "All", state.items]].concat(Object.entries(CATS).map(([k, v]) => [k, v, state.items.filter((i) => i.cat === k)]));
-  $("tabs").innerHTML = tabs.map(([k, label, its]) => {
+  const tab = ([k, label, its]) => {
     const st = statsOf(its);
     const sub = st.mean != null ? `${st.mean.toFixed(2)} · ${st.imgs}/${st.n}` : `${st.imgs}/${st.n}`;
-    return `<button class="tab" aria-pressed="${state.cat === k}" data-cat="${k}">${label}<small>${sub}</small></button>`;
-  }).join("");
+    return `<button class="tab" aria-pressed="${state.cat === k}" data-cat="${k}">${label.replace(/^R2 · /, "")}<small>${sub}</small></button>`;
+  };
+  const row = (keys) => keys.map((k) => tab([k, CATS[k], state.items.filter((i) => i.cat === k)])).join("");
+  $("tabs").innerHTML = `<div class="tabrow">${tab(["all", "All", state.items])}<span class="lbl">Round 1</span>${row([..."ABCDEF"])}</div>`
+    + `<div class="tabrow"><span class="lbl">Round 2</span>${row([..."GHIJKL"])}</div>`;
   const scoreChips = [5, 4, 3, 2, 1].map((n) => `<button class="chip" data-score="${n}" aria-pressed="${state.score === n}">${n}</button>`).join("");
   $("filters").innerHTML = `<span class="lbl">Score</span>${scoreChips}<button class="chip" data-standout aria-pressed="${state.standout}">★ standouts</button>`;
 }
@@ -288,7 +295,7 @@ function renderGrid() {
 function render() { renderTop(); renderSummary(); renderGrid(); }
 
 let cur = null;
-function setZoom(on) { $("stage").classList.toggle("zoomed", on); $("hint").textContent = on ? "click to fit" : "click to zoom 100%"; }
+function setZoom(on) { $("stage").classList.toggle("zoomed", on); $("hint").textContent = on ? "drag or scroll to pan · click to fit" : "click to zoom 100%"; }
 function openItem(id) {
   const its = visible().filter((i) => i.img);
   const idx = its.findIndex((i) => i.id === id);
@@ -328,8 +335,37 @@ function showCur() {
 }
 function step(d) { if (!cur) return; const n = cur.idx + d; if (n < 0 || n >= cur.its.length) return; cur.idx = n; showCur(); $("side").scrollTop = 0; }
 
+// Zoomed view: drag to pan in any direction; the wheel pans vertically, then horizontally once the
+// vertical edge is reached (shift+wheel or a trackpad's sideways swipe pans horizontally directly).
+let drag = null, dragged = false;
+$("dImg").addEventListener("pointerdown", (e) => {
+  if (!$("stage").classList.contains("zoomed") || e.button !== 0) return;
+  const sc = $("scroller");
+  drag = { x: e.clientX, y: e.clientY, l: sc.scrollLeft, t: sc.scrollTop }; dragged = false;
+  $("dImg").setPointerCapture(e.pointerId); e.preventDefault();
+});
+$("dImg").addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!dragged && Math.hypot(dx, dy) > 4) { dragged = true; $("stage").classList.add("dragging"); }
+  if (dragged) { const sc = $("scroller"); sc.scrollLeft = drag.l - dx; sc.scrollTop = drag.t - dy; }
+});
+const endDrag = () => { drag = null; $("stage").classList.remove("dragging"); };
+$("dImg").addEventListener("pointerup", endDrag);
+$("dImg").addEventListener("pointercancel", endDrag);
+$("scroller").addEventListener("wheel", (e) => {
+  if (!$("stage").classList.contains("zoomed")) return;
+  const sc = $("scroller"), k = e.deltaMode === 1 ? 32 : e.deltaMode === 2 ? sc.clientHeight : 1;
+  let dx = e.deltaX * k, dy = e.deltaY * k;
+  if (e.shiftKey && !dx) { dx = dy; dy = 0; }
+  const maxT = sc.scrollHeight - sc.clientHeight;
+  if (!dx && dy && (maxT <= 0 || (dy > 0 && sc.scrollTop >= maxT - 1) || (dy < 0 && sc.scrollTop <= 0))) { dx = dy; dy = 0; }
+  sc.scrollLeft += dx; sc.scrollTop += dy;
+  e.preventDefault();
+}, { passive: false });
 $("dImg").addEventListener("click", (e) => {
   const st = $("stage"), sc = $("scroller"), img = $("dImg");
+  if (dragged) { dragged = false; return; }
   if (st.classList.contains("zoomed")) { setZoom(false); return; }
   const r = img.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
   setZoom(true);
